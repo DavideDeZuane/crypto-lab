@@ -8,7 +8,7 @@ services:
       - "127.0.0.1:8888:8888"
 
     volumes:
-      - ./exercises:/workspace/exercises
+      - ./notebooks:/workspace/exercises
 
     working_dir: /workspace
 
