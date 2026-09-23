@@ -1,0 +1,182 @@
+###########################################################################
+0.1
+###########################################################################
+
+print(f"Adversary has chosen: \n m0 = {m0} \n m1 = {m1}")
+print()
+
+
+# Challenger
+b = random.randint(0,1)
+if b == 0:
+    cb = pow(m0, e, n) 
+else:
+    cb = pow(m1, e, n) 
+print(f"Challenger output: \n cb = {cb}")
+
+
+# Challenger 
+c0 = pow(m0, e, n)
+c1 = pow(m1, e, n)
+print(f"Adversary known pk so can encrypt: \n c0 = {c0} \n c1 = {c1}")
+print()
+
+if cb == c0:
+    b_hat = 0
+elif cb == c1:
+    b_hat = 1
+
+print()
+print(f"Adversary output: b_hat = {b_hat}")
+print(f"Challenger has chosen: b = {b}")
+print() 
+
+if b_hat == b:
+    print("Adversary wins!")
+else:
+    print("Adversary loses!")
+
+
+
+
+
+
+
+
+
+
+###########################################################################
+2.1
+###########################################################################
+
+p = 16777259
+g = 2
+x = p // 2
+u = pow(g,x,p)
+
+
+start = time.perf_counter()
+# Starting from u and g find x
+for i in range(1,p):
+    value = pow(g,i,p)
+    if(value == u):
+        print(f"DLP(u) = {i}")
+        break
+elapsed = time.perf_counter() - start
+
+print(f"Time: {elapsed:.2f} seconds")
+
+
+
+###########################################################################
+2.2
+###########################################################################
+
+p = 16777259
+g = 2
+
+alpha = p // 2
+beta = 12
+
+u = pow(g, alpha, p)
+v = pow(g, beta, p)
+
+w_1 = pow(u, beta, p)
+w_2 = pow(v, alpha, p)
+
+if w_1 == w_2:
+    print(f"ss match: {w_1}")
+
+###########################################################################
+2.3
+###########################################################################
+
+
+start = time.perf_counter()
+recovered = discrete_log_bruteforce(g, u, p)
+elapsed = time.perf_counter() - start
+
+print(f"Recovered: {recovered}")
+print(f"Time: {elapsed:.2f} seconds")
+
+# Find the shared secret
+recovered_ss = pow(v,recovered,p)
+print(f"Eve recovered the following secret {recovered_ss}")
+
+###########################################################################
+3.1
+###########################################################################
+
+
+# keygen
+x = random.randint(1, p - 2)  
+y = pow(g, x, p)       
+
+# Encryption
+k = random.randint(1, p-2)
+c1 = pow(g, k, p)             
+c2 = (m * pow(y, k, p)) % p
+
+# Decryption
+ss = pow(c1, x, p)
+s_inv = pow(ss, p-2, p)
+m_r  = c2*s_inv % p
+
+print(m_r)
+
+
+
+###########################################################################
+4.1
+###########################################################################
+
+p = 10007
+q = 10037
+e = 65537
+m = 904
+
+n = p*q
+phi = (p-1)*(q-1)
+
+d = inverso_moltiplicativo(e, phi) 
+print(d*e% phi)
+
+sign = pow(m,d,n)
+
+verify = pow(sign,e,n)
+
+print(verify == m)
+
+
+###########################################################################
+4.2
+###########################################################################
+x = random.randint(1, p-2)
+b = pow(alpha, x, p)
+
+m = 7895
+
+k = 0
+tmp = 0
+
+while tmp != 1:
+    k = random.randint(1, p-2)
+    tmp = gcd(k, p-1)
+    
+k_1 = inverso_moltiplicativo(k,p-1)
+r = pow(alpha, k, p)
+s = k_1*(m - r*x) % (p-1)
+
+print("Signature")
+print("-"*60)
+print(f"m = {m}")
+print(f"r = {r}")
+print(f"s = {s}")
+
+print()
+print("Verify")
+print("-"*60)
+v_1 = (pow(b,r,p)*pow(r,s,p)) % p
+v_2 = pow(alpha, m, p)
+
+print(v_1 == v_2)

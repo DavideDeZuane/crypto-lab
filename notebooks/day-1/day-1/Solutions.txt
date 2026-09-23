@@ -1,8 +1,0 @@
-n = 6
-print(f"\nTavola di addizione in Z_{n}:")
-for a in range(n):
-    print([  (a+b) % n for b in range(n) ])
-
-print(f"\nTavola di moltiplicazione in Z_{n}:")
-for a in range(n):
-    print([ (a*b) % n for b in range(n) ])

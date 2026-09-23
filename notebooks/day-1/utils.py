@@ -11,6 +11,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math, random, time, itertools
 from sympy import factorint, isprime, totient
+import time
 
 import os, time, itertools, random
 from Crypto.Cipher import AES
@@ -41,20 +42,14 @@ def primitive_root(p):
 
 def primitive_roots_bruteforce(p): 
     g_candidates = []
-
-    for i in range(1, p): 
-        generated_elements = set()
-
-        for exp in range(1, p): 
-            value = pow(i, exp, p) 
-            generated_elements.add(value)
-
-            if len(generated_elements) == p - 1: 
-                break
-
-        if len(generated_elements) == p - 1: 
+    for i in range(1, p):
+        generated_elements = []
+        for exp in range(1,p):
+            value = pow(i,exp,p)
+            if not value in generated_elements:
+                generated_elements.append(value)
+        if(len(generated_elements) == p - 1):
             g_candidates.append(i)
-
     return g_candidates
 
 def draw_peer_key_graph(n=8):
@@ -161,11 +156,14 @@ def H(x: bytes, out_len = K0_BYTES, hash_func=hashlib.sha256) -> bytes:
     """H: {0,1}^(k-k0) -> {0,1}^k0. Comprime il blocco mascherato."""
     return mgf1(x, out_len, hash_func)
 
-def compare_primitive_roots(test_primes):
+def compare_primitive_roots(test_primes, flag):
     brute_times = []
     smart_times = []
 
-    print(f"{'p':>6} | {'Brute force (s)':>17} | {'Metodo efficiente (s)':>22}")
+    if flag == True:
+        print(f"{'p':>6} | {'Brute force (s)':>17} | {'Metodo efficiente (s)':>22}")
+    else:
+        print(f"{'p':>6} | {'Brute force (s)':>17} |")
     print("-" * 51)
 
     for p in test_primes:
@@ -175,16 +173,21 @@ def compare_primitive_roots(test_primes):
         primitive_roots_bruteforce(p)
         brute_time = time.perf_counter() - t0
 
-        # Metodo efficiente
-        t0 = time.perf_counter()
-        primitive_root(p)
-        smart_time = time.perf_counter() - t0
+        if flag == True:
+            # Metodo efficiente
+            t0 = time.perf_counter()
+            primitive_root(p)
+            smart_time = time.perf_counter() - t0
+            smart_times.append(smart_time)
 
         brute_times.append(brute_time)
-        smart_times.append(smart_time)
 
-        print(f"{p:6d} | {brute_time:17.6f} | {smart_time:22.6f}")
+        if flag == True:
+            print(f"{p:6d} | {brute_time:17.6f} | {smart_time:22.6f}")
+        else:
+            print(f"{p:6d} | {brute_time:17.6f} | ")
 
+    
     # Grafico
     plt.figure(figsize=(6, 4))
 
@@ -195,12 +198,14 @@ def compare_primitive_roots(test_primes):
         label='Brute force'
     )
 
-    plt.plot(
-        test_primes,
-        smart_times,
-        marker='o',
-        label='Metodo efficiente'
-    )
+    if flag == True:
+        plt.plot(
+            test_primes,
+            smart_times,
+            marker='o',
+            label='Metodo efficiente'
+        )
+    
 
     plt.xlabel("p")
     plt.ylabel("Tempo (s)")
@@ -321,3 +326,133 @@ def plot_merkle_cost(Ks, N_values):
     plt.grid(True, alpha=0.3)
 
     plt.show()
+
+
+
+def discrete_log_bruteforce(g, A, p):
+    for x in range(p):
+        if pow(g, x, p) == A:
+            return x
+    return None
+
+
+def print_params(group):
+    
+    TOY_PARAMS = {
+        "TOY-10": { "bits": 10, "p": 1009, "g": 11, },
+        "TOY-14": { "bits": 14, "p": 12289, "g": 11,},
+        "TOY-16": { "bits": 17, "p": 65537, "g": 3,},
+        "TOY-24": { "bits": 24, "p": 16777259, "g": 2,},
+        "TOY-32": { "bits": 32, "p": 4294967291, "g": 2,},
+    }
+    if group in TOY_PARAMS:
+        gruppo = TOY_PARAMS[group]
+        p = gruppo["p"]
+        g = gruppo["g"]
+        dimensione_bit = gruppo["bits"]
+    
+        #print(f"[Profilo Caricato]: {GROUP} ({dimensione_bit} bit)")
+        print(f"[Public Values] (p = {p}, g = {g})\n")
+    else:
+        print(f"Errore: Il profilo '{group}' non è presente nella tabella.")
+
+
+
+import mpmath as mp
+import sys
+
+# Options for large parameters
+sys.set_int_max_str_digits(10000)
+mp.mp.dps = 2600 
+
+def generate_modp_prime(bits, c):
+    """
+    Generate the RFC 3526 MODP prime:
+
+    p = 2^bits - 2^(bits-64) - 1 + 2^64 * floor(2^(bits-130) * pi) + 2^64 * c
+    """
+
+    k = bits - 130
+
+    # High-precision pi
+    pi = mp.pi
+
+    # floor(2^k * pi)
+    floor_pi = int(mp.floor(mp.power(2, k) * pi))
+
+    p = (
+        2**bits
+        - 2**(bits - 64)
+        - 1
+        + 2**64 * (floor_pi + c)
+    )
+
+    return p
+
+
+def describe_group(name):
+    params = DH_PARAMS[name]
+    p = params["p"]
+
+    print(f"[Selected group]: {name}")
+    print(f"\tRFC group: {params['rfc_group']}")
+    print(f"\tBits: {p.bit_length()}")
+    print(f"\tDecimal digits: {len(str(p))}")
+    print(f"\tGenerator: {params['g']}")
+
+#########################################################################################
+# Real parameters used in IKE protocol: https://www.rfc-editor.org/rfc/rfc3526.txt
+#########################################################################################
+DH_PARAMS = {
+    
+    "MODP-1536": {
+        "bits": 1536,
+        "p": generate_modp_prime(1536, 741804),
+        "g": 2,
+        "rfc_group": 5,
+    },
+
+    "MODP-2048": {
+        "bits": 2048,
+        "p": generate_modp_prime(2048, 124476),
+        "g": 2,
+        "rfc_group": 14,
+    },
+
+    "MODP-3072": {
+        "bits": 3072,
+        "p": generate_modp_prime(3072, 1690314),
+        "g": 2,
+        "rfc_group": 15,
+    },
+
+    "MODP-4096": {
+        "bits": 4096,
+        "p": generate_modp_prime(4096, 240904),
+        "g": 2,
+        "rfc_group": 16,
+    },
+
+    "MODP-6144": {
+        "bits": 6144,
+        "p": generate_modp_prime(6144, 929484),
+        "g": 2,
+        "rfc_group": 17,
+    },
+
+    "MODP-8192": {
+        "bits": 8192,
+        "p": generate_modp_prime(8192, 4743158),
+        "g": 2,
+        "rfc_group": 18,
+    },
+
+}
+
+
+def gcd(a, b):
+    while b != 0:
+        a, b = b, a % b
+    return a
+
+print("✓ Environment ready")
